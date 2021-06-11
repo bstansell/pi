@@ -1,0 +1,325 @@
+#!/usr/bin/env python3
+# NeoPixel library strandtest example
+# Author: Tony DiCola (tony@tonydicola.com)
+#
+# Direct port of the Arduino NeoPixel library strandtest example.  Showcases
+# various animations on a strip of NeoPixels.
+
+from flask import Flask
+import math
+import time
+from rpi_ws281x import PixelStrip, Color
+import argparse
+import threading
+
+app = Flask(__name__)
+
+# LED strip configuration:
+LED_COUNT = 48        # Number of LED pixels.
+LED_PIN = 18          # GPIO pin connected to the pixels (18 uses PWM!).
+# LED_PIN = 10        # GPIO pin connected to the pixels (10 uses SPI /dev/spidev0.0).
+LED_FREQ_HZ = 800000  # LED signal frequency in hertz (usually 800khz)
+LED_DMA = 10          # DMA channel to use for generating signal (try 10)
+LED_BRIGHTNESS = 128  # Set to 0 for darkest and 255 for brightest
+LED_INVERT = False    # True to invert the signal (when using NPN transistor level shift)
+LED_CHANNEL = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
+
+# Create NeoPixel object with appropriate configuration.
+strip = PixelStrip(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL)
+# Intialize the library (must be called once before other functions).
+strip.begin()
+
+# 2 .178A
+# 255  1.182A
+# 128  .678A
+# 64  .425A
+# 16  .234A
+# 192  .929A
+
+#.043 per led
+
+#1.19A @ 32 for 256 led
+
+
+# 0.168A @ 0 for 256 led
+# 1.165A @ 32 for 256 led
+# 1.875A @ 64 for 256 led
+# 2.210A @ 128 for 256 led
+# 2.315A @ 192 for 256 led
+
+# Define functions which animate LEDs in various ways.
+def colorWipe(strip, color, wait_ms=50):
+    """Wipe color across display a pixel at a time."""
+    for i in range(strip.numPixels()):
+        strip.setPixelColor(i, color)
+    strip.show()
+    #time.sleep(wait_ms / 1000.0)
+
+
+def theaterChase(strip, color, wait_ms=50, iterations=10):
+    """Movie theater light style chaser animation."""
+    for j in range(iterations):
+        for q in range(3):
+            for i in range(0, strip.numPixels(), 3):
+                strip.setPixelColor(i + q, color)
+            strip.show()
+            time.sleep(wait_ms / 1000.0)
+            for i in range(0, strip.numPixels(), 3):
+                strip.setPixelColor(i + q, 0)
+
+
+def wheel(pos):
+    """Generate rainbow colors across 0-255 positions."""
+
+    gamma = [
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,
+          2,  3,  3,  3,  3,  3,  3,  3,  4,  4,  4,  4,  4,  5,  5,  5,
+          5,  6,  6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  9,  9,  9, 10,
+         10, 10, 11, 11, 11, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16, 16,
+         17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 24, 24, 25,
+         25, 26, 27, 27, 28, 29, 29, 30, 31, 32, 32, 33, 34, 35, 35, 36,
+         37, 38, 39, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 50,
+         51, 52, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 66, 67, 68,
+         69, 70, 72, 73, 74, 75, 77, 78, 79, 81, 82, 83, 85, 86, 87, 89,
+         90, 92, 93, 95, 96, 98, 99,101,102,104,105,107,109,110,112,114,
+        115,117,119,120,122,124,126,127,129,131,133,135,137,138,140,142,
+        144,146,148,150,152,154,156,158,160,162,164,167,169,171,173,175,
+        177,180,182,184,186,189,191,193,196,198,200,203,205,208,210,213,
+        215,218,220,223,225,228,231,233,236,239,241,244,247,249,252,255 ]
+
+    if pos < 85:
+        return Color(gamma[255 - pos * 3], gamma[pos *3], gamma[0])
+    elif pos < 170:
+        pos -= 85
+        return Color(gamma[0], gamma[255 - pos * 3], gamma[pos * 3])
+    else:
+        pos -= 170
+        return Color(gamma[pos * 3], gamma[0], gamma[255 - pos * 3])
+
+
+def rainbow(strip, wait_ms=20, iterations=1):
+    """Draw rainbow that fades across all pixels at once."""
+    for j in range(256 * iterations):
+        for i in range(strip.numPixels()):
+            strip.setPixelColor(i, wheel((i + j) & 255))
+        strip.show()
+        #time.sleep(wait_ms / 1000.0)
+
+
+def rainbowCycle(strip, wait_ms=20, iterations=5):
+    """Draw rainbow that uniformly distributes itself across all pixels."""
+    for j in range(256 * iterations):
+        for i in range(strip.numPixels()):
+            strip.setPixelColor(i, wheel(
+                (int(i * 256 / strip.numPixels()) + j) & 255))
+        strip.show()
+        time.sleep(wait_ms / 1000.0)
+
+
+def theaterChaseRainbow(strip, wait_ms=50):
+    """Rainbow movie theater light style chaser animation."""
+    for j in range(256):
+        for q in range(3):
+            for i in range(0, strip.numPixels(), 3):
+                strip.setPixelColor(i + q, wheel((i + j) % 255))
+            strip.show()
+            time.sleep(wait_ms / 1000.0)
+            for i in range(0, strip.numPixels(), 3):
+                strip.setPixelColor(i + q, 0)
+
+def convert_K_to_RGB(colour_temperature):
+    """
+    Converts from K to RGB, algorithm courtesy of
+    http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code/
+    """
+    #range check
+    if colour_temperature < 1000:
+        colour_temperature = 1000
+    elif colour_temperature > 40000:
+        colour_temperature = 40000
+
+    tmp_internal = colour_temperature / 100.0
+
+    # red
+    if tmp_internal <= 66:
+        red = 255
+    else:
+        tmp_red = 329.698727446 * math.pow(tmp_internal - 60, -0.1332047592)
+        if tmp_red < 0:
+            red = 0
+        elif tmp_red > 255:
+            red = 255
+        else:
+            red = tmp_red
+
+    # green
+    if tmp_internal <=66:
+        tmp_green = 99.4708025861 * math.log(tmp_internal) - 161.1195681661
+        if tmp_green < 0:
+            green = 0
+        elif tmp_green > 255:
+            green = 255
+        else:
+            green = tmp_green
+    else:
+        tmp_green = 288.1221695283 * math.pow(tmp_internal - 60, -0.0755148492)
+        if tmp_green < 0:
+            green = 0
+        elif tmp_green > 255:
+            green = 255
+        else:
+            green = tmp_green
+
+    # blue
+    if tmp_internal >=66:
+        blue = 255
+    elif tmp_internal <= 19:
+        blue = 0
+    else:
+        tmp_blue = 138.5177312231 * math.log(tmp_internal - 10) - 305.0447927307
+        if tmp_blue < 0:
+            blue = 0
+        elif tmp_blue > 255:
+            blue = 255
+        else:
+            blue = tmp_blue
+
+    return Color(int(red), int(green), int(blue))
+
+
+moving = False
+
+@app.route('/')
+def hello_world():
+    return 'Hello, World!'
+
+@app.route('/color/<int:r>/<int:g>/<int:b>')
+def color(r,g,b):
+    global strip
+    global moving
+    moving = False
+    colorWipe(strip, Color(r,g,b))
+    return 'color = {}/{}/{}'.format(r,g,b)
+
+@app.route('/temp/<int:t>')
+def temp(t):
+    global strip
+    global moving
+    moving = False
+    colorWipe(strip, convert_K_to_RGB(t))
+    return '{}K'.format(t)
+
+@app.route('/off')
+def turnoff():
+    global strip
+    global moving
+    moving = False
+    colorWipe(strip, Color(0,0,0))
+    return 'Off'
+
+@app.route('/on')
+def turnon():
+    global strip
+    global moving
+    moving = False
+    colorWipe(strip, convert_K_to_RGB(5500))
+    return '5500K'
+
+@app.route('/rainbow')
+def api_rainbow():
+    global strip
+    global moving
+    moving = False
+    lim=strip.numPixels()
+    for i in range(strip.numPixels()):
+        strip.setPixelColor(i, wheel(int(((i+1)/lim)*256)-1))
+    strip.show()
+    return 'RaInBoW'
+
+#next_call = time.time()
+def moveit():
+    global next_call
+    global moving
+    if (moving):
+        lim=strip.numPixels()
+        n=int((time.time()*40)%lim)
+        for i in range(lim):
+            offset = (i+n)%lim + 1
+            strip.setPixelColor(i, wheel(int((offset/lim)*256)-1))
+        strip.show()
+        #next_call = next_call+1
+        #threading.Timer(next_call - time.time(), moveit).start()
+        #threading.Timer(0.001, moveit).start()
+        threading.Timer(0.04, moveit).start()
+    return
+
+def moveit2():
+    global next_call
+    global moving
+    if (moving):
+        lim=strip.numPixels()
+        n=int((time.time()*40)%255)
+        for i in range(lim):
+            offset = (i+n)%256
+            strip.setPixelColor(i, wheel(offset))
+        strip.show()
+        threading.Timer(0.04, moveit2).start()
+    return
+
+cpos = 0
+cdir = -1
+cpos2 = strip.numPixels() * 2 / 3
+cdir2 = 1
+def cylon():
+    global cpos
+    global cpos2
+    global cdir
+    global cdir2
+    global moving
+    if (moving):
+        lim=strip.numPixels()
+        mir=lim - cpos
+        mir2=lim - cpos2
+
+        for i in range(lim):
+            c = 0
+            if (i == cpos or i == cpos2 or i == mir or i == mir2):
+                c = 32
+            strip.setPixelColor(i, Color(c,c,c))
+        strip.show()
+
+        if (cpos == 0 or cpos == (lim-1)):
+            cdir = -cdir
+        cpos += cdir
+        if (cpos2 == 0 or cpos2 == (lim-1)):
+            cdir2 = -cdir2
+        cpos2 += cdir2
+        threading.Timer(0.02, cylon).start()
+    return
+
+@app.route('/moving')
+def api_moving():
+    global moving
+    moving = True
+    moveit()
+    return 'MoViNgRaInBoW'
+
+@app.route('/longmoving')
+def api_longmoving():
+    global moving
+    moving = True
+    moveit2()
+    return 'LoNgMoViNgRaInBoW'
+
+@app.route('/cylon')
+def api_cylon():
+    global moving
+    moving = True
+    cylon()
+    return 'cylon'
+
+if __name__ == '__main__':
+    app.debug = True
+    app.run(host='0.0.0.0', port=80, debug=False)

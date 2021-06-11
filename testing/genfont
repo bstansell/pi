@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+
+from PIL import Image, ImageDraw, ImageFont
+
+font = ImageFont.truetype("5x7.ttf", 8)
+
+strings = []
+for n in range(10):
+    strings.append(str(n))
+strings.append("Hello")
+strings.append("Happy President's Day!!!")
+strings.append("Morning Diya!")
+strings.append("Prusa MINI+")
+
+for text in strings:
+    text_width, text_height = font.getsize(text)
+    image = Image.new('P', (text_width, 8), 0)
+    draw = ImageDraw.Draw(image)
+    draw.text((0, 0), text, font=font, fill=255)
+
+    res = []
+    for x in range(image.size[0]):
+        b = 0
+        for y in range(image.size[1]):
+            if image.getpixel((x,y)) != 0:
+                b = b | (1 << y)
+        res.append(b)
+
+    print("{} = {}".format(text, res))
