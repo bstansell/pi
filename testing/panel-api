@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+
+from flask import Flask
+import time
+import board
+import neopixel
+from adafruit_pixel_framebuf import PixelFramebuffer, VERTICAL
+import threading
+
+# Choose an open pin connected to the Data In of the NeoPixel strip, i.e. board.D18
+# NeoPixels must be connected to D10, D12, D18 or D21 to work.
+pixel_pin = board.D18
+
+# The number of NeoPixels
+pixel_height = 8
+pixel_width = 32
+
+num_pixels = pixel_height * pixel_width
+
+# The order of the pixel colors - RGB or GRB. Some NeoPixels have red and green reversed!
+# For RGBW NeoPixels, simply change the ORDER to RGBW or GRBW.
+ORDER = neopixel.GRB
+
+pixels = neopixel.NeoPixel(
+    pixel_pin, num_pixels, brightness=0.5, auto_write=False, pixel_order=ORDER
+)
+pixel_framebuf = PixelFramebuffer(
+    pixels,
+    pixel_width,
+    pixel_height,
+    orientation=VERTICAL,
+    rotation=2,
+)
+
+msg = "Under Construction"
+app = Flask(__name__)
+shutdown = threading.Event()
+
+def updatePanel():
+    offset = pixel_width
+
+    while not shutdown.isSet():
+        pixel_framebuf.fill(0x000000)
+        pixel_framebuf.text(msg,offset,0,0xFF3200)
+        pixel_framebuf.display()
+        time.sleep(.07) #scrolling text speed
+        offset -= 1
+        if offset < -(len(msg)*6):
+            offset = pixel_width
+
+    pixel_framebuf.fill(0x000000)
+    pixel_framebuf.display()
+
+@app.route('/')
+def hello_world():
+    return 'Hello, World!'
+
+@app.route('/msg/<path:message>')
+def message(message):
+    global msg
+    msg = message
+    return 'OK'
+
+if __name__ == '__main__':
+    panel = threading.Thread(target=updatePanel)
+    panel.start()
+    app.debug = True
+    app.run(host='0.0.0.0', port=8080, debug=False)
+    shutdown.set()
+    panel.join()
