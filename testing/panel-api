@@ -32,6 +32,7 @@ pixel_framebuf = PixelFramebuffer(
     rotation=2,
 )
 
+scrolling = True
 msg = "Under Construction"
 app = Flask(__name__)
 shutdown = threading.Event()
@@ -40,16 +41,50 @@ def updatePanel():
     offset = pixel_width
 
     while not shutdown.isSet():
+        if not scrolling:
+            offset = 0
+
         pixel_framebuf.fill(0x000000)
         pixel_framebuf.text(msg,offset,0,0xFF3200)
         pixel_framebuf.display()
-        time.sleep(.07) #scrolling text speed
+        time.sleep(.07) # scrolling text speed
+
         offset -= 1
         if offset < -(len(msg)*6):
             offset = pixel_width
 
     pixel_framebuf.fill(0x000000)
     pixel_framebuf.display()
+
+def wheel(pos):
+    # Input a value 0 to 255 to get a color value.
+    # The colours are a transition r - g - b - back to r.
+    if pos < 0 or pos > 255:
+        r = g = b = 0
+    elif pos < 85:
+        r = int(pos * 3)
+        g = int(255 - pos * 3)
+        b = 0
+    elif pos < 170:
+        pos -= 85
+        r = int(255 - pos * 3)
+        g = 0
+        b = int(pos * 3)
+    else:
+        pos -= 170
+        r = 0
+        g = int(pos * 3)
+        b = int(255 - pos * 3)
+    return (r, g, b) if ORDER in (neopixel.RGB, neopixel.GRB) else (r, g, b, 0)
+
+
+def rainbow_cycle(wait):
+    for j in range(255):
+        for i in range(num_pixels):
+            pixel_index = (i * 256 // num_pixels) + j
+            pixels[i] = wheel(pixel_index & 255)
+        pixels.show()
+        time.sleep(wait)
 
 @app.route('/')
 def hello_world():
@@ -58,7 +93,17 @@ def hello_world():
 @app.route('/msg/<path:message>')
 def message(message):
     global msg
+    global scrolling
     msg = message
+    scrolling = False
+    return 'OK'
+
+@app.route('/scroll/<path:message>')
+def scroll(message):
+    global msg
+    global scrolling
+    msg = message
+    scrolling = True
     return 'OK'
 
 if __name__ == '__main__':
