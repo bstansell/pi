@@ -1,0 +1,8 @@
+[Unit]
+Description=LED Panel API
+
+[Service]
+ExecStart=/home/pi/pi/flask/panel-api
+
+[Install]
+WantedBy=multi-user.target

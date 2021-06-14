@@ -75,7 +75,7 @@ def updatePanel():
             pixel_framebuf.display()
         else:
             pixel_framebuf.fill(0x000000)
-            pixel_framebuf.text(msg,offset,0,0xFF3200)
+            pixel_framebuf.text(msg,offset,0,0xFF3200,font_name='/home/pi/pi/flask/font5x8.bin')
             rainbowPanel()
             pixel_framebuf.display()
 
