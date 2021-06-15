@@ -10,119 +10,119 @@ import threading
 # Choose an open pin connected to the Data In of the NeoPixel strip, i.e. board.D18
 # NeoPixels must be connected to D10, D12, D18 or D21 to work.
 pixel_pin = board.D18
-
 # The number of NeoPixels
-pixel_height = 8
-pixel_width = 32
-num_pixels = pixel_height * pixel_width
 ORDER = neopixel.GRB
 
-def wheel(pos):
-    # Input a value 0 to 255 to get a color value.
-    # The colours are a transition r - g - b - back to r.
-    if pos < 0 or pos > 255:
-        r = g = b = 0
-    elif pos < 85:
-        r = int(pos * 3)
-        g = int(255 - pos * 3)
-        b = 0
-    elif pos < 170:
-        pos -= 85
-        r = int(255 - pos * 3)
-        g = 0
-        b = int(pos * 3)
-    else:
-        pos -= 170
-        r = 0
-        g = int(pos * 3)
-        b = int(255 - pos * 3)
-    return (r, g, b) if ORDER in (neopixel.RGB, neopixel.GRB) else (r, g, b, 0)
+class MyPanel():
+    def __init__(self, pixel_width=32, pixel_height=8, shutdown_event=None):
+        self.msg = "Under Construction"
+        self.pixel_width = pixel_width
+        self.pixel_height = pixel_height
+        self.pixels = neopixel.NeoPixel(
+            pixel_pin, pixel_height * pixel_width, brightness=0.5, auto_write=False, pixel_order=ORDER
+        )
+        self.pixel_framebuf = PixelFramebuffer(
+            self.pixels,
+            self.pixel_width,
+            self.pixel_height,
+            orientation=VERTICAL,
+            rotation=2,
+        )
+        self.scrolling = True
+        self.panel_off = False
+        self.shutdown = shutdown_event
 
-pixels = neopixel.NeoPixel(
-    pixel_pin, num_pixels, brightness=0.5, auto_write=False, pixel_order=ORDER
-)
-pixel_framebuf = PixelFramebuffer(
-    pixels,
-    pixel_width,
-    pixel_height,
-    orientation=VERTICAL,
-    rotation=2,
-)
+    def wheel(self,pos):
+        # Input a value 0 to 255 to get a color value.
+        # The colours are a transition r - g - b - back to r.
+        if pos < 0 or pos > 255:
+            r = g = b = 0
+        elif pos < 85:
+            r = int(pos * 3)
+            g = int(255 - pos * 3)
+            b = 0
+        elif pos < 170:
+            pos -= 85
+            r = int(255 - pos * 3)
+            g = 0
+            b = int(pos * 3)
+        else:
+            pos -= 170
+            r = 0
+            g = int(pos * 3)
+            b = int(255 - pos * 3)
+        return (r, g, b) if ORDER in (neopixel.RGB, neopixel.GRB) else (r, g, b, 0)
 
-scrolling = True
+    def rainbowLit(self):
+        for x in range(self.pixel_width):
+            for y in range(self.pixel_height):
+                c = self.pixel_framebuf.pixel(x,y)
+                if (c != 0):
+                    self.pixel_framebuf.pixel(x,y,self.wheel((x * self.pixel_height + y) & 255))
+
+    def rainbowPanel(self):
+        for x in range(self.pixel_width):
+            for y in range(self.pixel_height):
+                self.pixel_framebuf.pixel(x,y,self.wheel((x * self.pixel_height + y) & 255))
+
+    def off(self):
+        self.panel_off = True
+
+    def setMessage(self, msg, scrolling=True):
+        self.msg = msg
+        self.scrolling = scrolling
+        self.panel_off = False
+
+    def updatePanel(self):
+        offset = self.pixel_width
+
+        while self.shutdown is None or not self.shutdown.isSet():
+            if not self.scrolling:
+                offset = 0
+
+            if self.panel_off:
+                self.pixel_framebuf.fill(0x000000)
+                self.pixel_framebuf.display()
+            else:
+                #self.rainbowPanel()
+                #self.pixel_framebuf.text(self.msg,offset,0,0x000000,font_name='/home/pi/pi/flask/font5x8.bin')
+
+                self.pixel_framebuf.fill(0x000000)
+                self.pixel_framebuf.text(self.msg,offset,0,0xFF3200,font_name='/home/pi/pi/flask/font5x8.bin')
+                self.rainbowLit()
+                self.pixel_framebuf.display()
+
+            time.sleep(.07) # scrolling text speed
+
+            offset -= 1
+            if offset < -(len(self.msg)*6):
+                offset = self.pixel_width
+
+        # clear and exit
+        self.pixel_framebuf.fill(0x000000)
+        self.pixel_framebuf.display()
+
+
 app = Flask(__name__)
 shutdown = threading.Event()
-
-msg = "Under Construction"
-panel_off = False
-
-def rainbowLit():
-    for x in range(pixel_width):
-        for y in range(pixel_height):
-            c = pixel_framebuf.pixel(x,y)
-            if (c != 0):
-                pixel_framebuf.pixel(x,y,wheel((x * pixel_height + y) & 255))
-
-def rainbowPanel():
-    for x in range(pixel_width):
-        for y in range(pixel_height):
-            pixel_framebuf.pixel(x,y,wheel((x * pixel_height + y) & 255))
-
-def updatePanel():
-    offset = pixel_width
-
-    while not shutdown.isSet():
-        if not scrolling:
-            offset = 0
-
-        if panel_off:
-            pixel_framebuf.fill(0x000000)
-            pixel_framebuf.display()
-        else:
-            #rainbowPanel()
-            #pixel_framebuf.text(msg,offset,0,0x000000,font_name='/home/pi/pi/flask/font5x8.bin')
-
-            pixel_framebuf.fill(0x000000)
-            pixel_framebuf.text(msg,offset,0,0xFF3200,font_name='/home/pi/pi/flask/font5x8.bin')
-            rainbowLit()
-            pixel_framebuf.display()
-
-        time.sleep(.07) # scrolling text speed
-
-        offset -= 1
-        if offset < -(len(msg)*6):
-            offset = pixel_width
-
-    # clear and exit
-    pixel_framebuf.fill(0x000000)
-    pixel_framebuf.display()
-
+mypanel = MyPanel(shutdown_event=shutdown)
 
 @app.route('/')
-def hello_world():
-    return 'Hello, World!'
+def hello():
+    return 'Hello'
 
 @app.route('/msg/<path:message>')
 def message(message):
-    global msg, scrolling, panel_off
-    msg = message
-    scrolling = False
-    panel_off = False
+    mypanel.setMessage(message, scrolling=False)
     return 'OK'
 
 @app.route('/scroll/<path:message>')
 def scroll(message):
-    global msg, scrolling, panel_off
-    msg = message
-    scrolling = True
-    panel_off = False
+    mypanel.setMessage(message, scrolling=True)
     return 'OK'
 
 @app.route('/defcon/<int:num>')
 def defcon(num):
-    global msg, scrolling, panel_off
-    panel_off = False
-    scrolling = True
     if num == 1:
         color = 0xFFFFFF
     elif num == 2:
@@ -134,16 +134,16 @@ def defcon(num):
     elif num == 5:
         color = 0x0000FF
     msg = "DEFCON {}".format(num)
+    mypanel.setMessage(msg, scrolling=True)
     return 'OK'
 
 @app.route('/off')
 def off():
-    global panel_off
-    panel_off = True
+    mypanel.off()
     return 'OK'
 
 if __name__ == '__main__':
-    panel = threading.Thread(target=updatePanel)
+    panel = threading.Thread(target=mypanel.updatePanel)
     panel.start()
     app.debug = True
     app.run(host='0.0.0.0', port=8080, debug=False)
