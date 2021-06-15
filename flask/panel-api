@@ -19,7 +19,7 @@ class MyPanel():
         self.pixel_width = pixel_width
         self.pixel_height = pixel_height
         self.pixels = neopixel.NeoPixel(
-            pixel_pin, pixel_height * pixel_width, brightness=0.5, auto_write=False, pixel_order=ORDER
+            pixel_pin, pixel_height * pixel_width, brightness=0.25, auto_write=False, pixel_order=ORDER
         )
         self.pixel_framebuf = PixelFramebuffer(
             self.pixels,
@@ -31,6 +31,9 @@ class MyPanel():
         self.scrolling = True
         self.panel_off = False
         self.shutdown = shutdown_event
+        self.reverse_color = False
+        self.bg_color = 0x000000
+        self.fg_color = None
 
     def wheel(self,pos):
         # Input a value 0 to 255 to get a color value.
@@ -53,6 +56,16 @@ class MyPanel():
             b = int(255 - pos * 3)
         return (r, g, b) if ORDER in (neopixel.RGB, neopixel.GRB) else (r, g, b, 0)
 
+    def bgFill(self):
+        if self.bg_color == 0x000000:
+            return
+
+        for x in range(self.pixel_width):
+            for y in range(self.pixel_height):
+                c = self.pixel_framebuf.pixel(x,y)
+                if (c == 0):
+                    self.pixel_framebuf.pixel(x,y,self.bg_color)
+
     def rainbowLit(self):
         for x in range(self.pixel_width):
             for y in range(self.pixel_height):
@@ -68,10 +81,13 @@ class MyPanel():
     def off(self):
         self.panel_off = True
 
-    def setMessage(self, msg, scrolling=True):
+    def setMessage(self, msg, scrolling=True, reverse_color=False, bg_color=0x000000, fg_color=None):
         self.msg = msg
         self.scrolling = scrolling
         self.panel_off = False
+        self.bg_color = bg_color
+        self.reverse_color = reverse_color
+        self.fg_color = fg_color
 
     def updatePanel(self):
         offset = self.pixel_width
@@ -84,12 +100,17 @@ class MyPanel():
                 self.pixel_framebuf.fill(0x000000)
                 self.pixel_framebuf.display()
             else:
-                #self.rainbowPanel()
-                #self.pixel_framebuf.text(self.msg,offset,0,0x000000,font_name='/home/pi/pi/flask/font5x8.bin')
-
-                self.pixel_framebuf.fill(0x000000)
-                self.pixel_framebuf.text(self.msg,offset,0,0xFF3200,font_name='/home/pi/pi/flask/font5x8.bin')
-                self.rainbowLit()
+                if self.reverse_color:
+                    self.rainbowPanel()
+                    self.pixel_framebuf.text(self.msg,offset,0,0x000000,font_name='/home/pi/pi/flask/font5x8.bin')
+                else:
+                    self.pixel_framebuf.fill(0x000000)
+                    if self.fg_color is None:
+                        self.pixel_framebuf.text(self.msg,offset,0,0xFFFFFF,font_name='/home/pi/pi/flask/font5x8.bin')
+                        self.rainbowLit()
+                    else:
+                        self.pixel_framebuf.text(self.msg,offset,0,self.fg_color,font_name='/home/pi/pi/flask/font5x8.bin')
+                    self.bgFill()
                 self.pixel_framebuf.display()
 
             time.sleep(.07) # scrolling text speed
@@ -118,7 +139,7 @@ def message(message):
 
 @app.route('/scroll/<path:message>')
 def scroll(message):
-    mypanel.setMessage(message, scrolling=True)
+    mypanel.setMessage(message)
     return 'OK'
 
 @app.route('/defcon/<int:num>')
@@ -134,7 +155,7 @@ def defcon(num):
     elif num == 5:
         color = 0x0000FF
     msg = "DEFCON {}".format(num)
-    mypanel.setMessage(msg, scrolling=True)
+    mypanel.setMessage(msg, scrolling=True, fg_color=0x010101, bg_color=color)
     return 'OK'
 
 @app.route('/off')
