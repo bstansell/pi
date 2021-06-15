@@ -56,12 +56,17 @@ shutdown = threading.Event()
 msg = "Under Construction"
 panel_off = False
 
-def rainbowPanel():
+def rainbowLit():
     for x in range(pixel_width):
         for y in range(pixel_height):
             c = pixel_framebuf.pixel(x,y)
             if (c != 0):
                 pixel_framebuf.pixel(x,y,wheel((x * pixel_height + y) & 255))
+
+def rainbowPanel():
+    for x in range(pixel_width):
+        for y in range(pixel_height):
+            pixel_framebuf.pixel(x,y,wheel((x * pixel_height + y) & 255))
 
 def updatePanel():
     offset = pixel_width
@@ -74,9 +79,12 @@ def updatePanel():
             pixel_framebuf.fill(0x000000)
             pixel_framebuf.display()
         else:
+            #rainbowPanel()
+            #pixel_framebuf.text(msg,offset,0,0x000000,font_name='/home/pi/pi/flask/font5x8.bin')
+
             pixel_framebuf.fill(0x000000)
             pixel_framebuf.text(msg,offset,0,0xFF3200,font_name='/home/pi/pi/flask/font5x8.bin')
-            rainbowPanel()
+            rainbowLit()
             pixel_framebuf.display()
 
         time.sleep(.07) # scrolling text speed
