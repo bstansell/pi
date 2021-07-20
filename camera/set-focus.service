@@ -2,7 +2,7 @@
 Description=Camera Focus
 
 [Service]
-Type=OneShot
+Type=oneshot
 ExecStart=/home/pi/pi/camera/set-focus
 RemainAfterExit=yes
 
