@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
-import smbus
+#import smbus
 
-f = 400
+f = 350
 value = (f << 4) & 0x3ff0
 data1 = (value >> 8) & 0x3f
 data2 = value & 0xf0
-bus = smbus.SMBus(0)
-bus.write_byte_data(0xc, data1, data2)
+print("{} {}".format(data1, data2))
+#bus = smbus.SMBus(0)
+#bus.write_byte_data(0xc, data1, data2)

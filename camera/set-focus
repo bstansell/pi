@@ -8,6 +8,12 @@ while ! i2cdetect -y 0 0xc 0xc | grep ' 0c '; do
 	sleep 1
 done
 
-i2cset -y 0 0x0c 25 0  # 400
+f=350
 
-echo focus set to 400
+value=$(( (f << 4) & 0x3ff0 ))
+data1=$(( (value >> 8) & 0x3f ))
+data2=$(( value & 0xf0 ))
+
+i2cset -y 0 0x0c $data1 $data2
+
+echo focus set to $f
